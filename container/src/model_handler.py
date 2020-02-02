@@ -8,6 +8,7 @@ import re
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
+
 class ModelHandler(object):
     """
     A sample Model handler implementation.
@@ -17,7 +18,6 @@ class ModelHandler(object):
         self.initialized = False
         self.model = None
         self.shapes = None
-
 
     def get_input_data_shapes(self, model_dir, checkpoint_prefix):
         """
@@ -52,7 +52,7 @@ class ModelHandler(object):
         self.initialized = True
         properties = context.system_properties
         # Contains the url parameter passed to the load request
-        model_dir = properties.get("model_dir") 
+        model_dir = properties.get("model_dir")
 
         X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
         y = np.dot(X, np.array([1, 2])) + 3
@@ -70,8 +70,11 @@ class ModelHandler(object):
         :return: list of preprocessed model input data
         """
         # Take the input data and pre-process it make it inference ready
-        data = json.loads(request) 
-        data = data['data']
+        print('RAW Request: ')
+        print('{}'.format(request))
+        # data = [json.loads(r) for r in request['body']]
+        data = [json.loads(r['body'].decode('utf-8')) for r in request]
+        print(data)
         return data
 
     def inference(self, model_input):
@@ -93,8 +96,8 @@ class ModelHandler(object):
         # Take output from network and post-process to desired format
         # prob = np.squeeze(inference_output)
         # a = np.argsort(prob)[::-1]
-        # return [['probability=%f, class=%s' %(prob[i], self.labels[i]) for i in a[0:5]]]
-        return inference_output
+        # return [['probability=%f, class=%s' %(prob[i], self.labels[i]) for i in a[0:5]
+        return str(inference_output)
 
     def handle(self, data, context):
         """
@@ -102,11 +105,12 @@ class ModelHandler(object):
         :param data: input data
         :param context: mms context
         """
-        
+
         model_input = self.preprocess(data)
         model_out = self.inference(model_input)
         return self.postprocess(model_out)
-    
+
+
 _service = ModelHandler()
 
 
@@ -118,3 +122,4 @@ def handle(data, context):
         return None
 
     return _service.handle(data, context)
+
