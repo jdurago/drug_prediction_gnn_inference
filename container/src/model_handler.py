@@ -7,7 +7,17 @@ import re
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from dgl.data.chem import smiles_to_bigraph, BaseAtomFeaturizer, CanonicalAtomFeaturizer
+from dgl import DGLGraph
+import torch
 
+def smiles_to_dgl_graph(smiles_str: str, node_featurizer: BaseAtomFeaturizer = CanonicalAtomFeaturizer()) -> DGLGraph:
+    return smiles_to_bigraph(smiles_str, atom_featurizer=node_featurizer)
+
+def logit2probability(input_logit: torch.Tensor) -> torch.Tensor:
+    odds = torch.exp(input_logit)
+    prob = odds/ (1 + odds)
+    return prob
 
 class ModelHandler(object):
     """
@@ -53,13 +63,16 @@ class ModelHandler(object):
         properties = context.system_properties
         # Contains the url parameter passed to the load request
         model_dir = properties.get("model_dir")
+        print('MODEL DIR {}'.format(model_dir))
 
-        X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
-        y = np.dot(X, np.array([1, 2])) + 3
+        # X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
+        # y = np.dot(X, np.array([1, 2])) + 3
 
         # Load model
         try:
-            self.model = LinearRegression().fit(X, y)
+            # self.model = LinearRegression().fit(X, y)
+            self.model = torch.load(os.path.join(model_dir, 'gnn_model.pt'))
+            print('Model successfully loaded...')
         except RuntimeError:
             raise
 
@@ -70,12 +83,15 @@ class ModelHandler(object):
         :return: list of preprocessed model input data
         """
         # Take the input data and pre-process it make it inference ready
-        print('RAW Request: ')
-        print('{}'.format(request))
-        # data = [json.loads(r) for r in request['body']]
-        data = [json.loads(r['body'].decode('utf-8')) for r in request]
-        print(data)
-        return data
+        atom_data_field = 'h'
+        
+        smiles = [json.loads(r['body'].decode('utf-8')) for r in request]
+        print('INPUT SMILES {}'.format(smiles))
+        
+        graphs = [smiles_to_dgl_graph(s) for s in smiles ]
+        feats = [g.ndata.pop(atom_data_field) for g in graphs ]
+        print('Input successfully preprocessed...')
+        return zip(graphs, feats)
 
     def inference(self, model_input):
         """
@@ -84,8 +100,16 @@ class ModelHandler(object):
         :return: list of inference output in NDArray
         """
         # Do some inference call to engine here and return output
-        prob = self.model.predict(model_input)
-        return prob
+        self.model.eval()
+        
+        probs = []
+        for graph, feat in model_input:
+            logit = self.model(graph, feat)
+            prob = logit2probability(logit)
+            probs.append(prob.detach().numpy())
+
+        print('Inference successfully completed...')
+        return probs
 
     def postprocess(self, inference_output):
         """
@@ -97,7 +121,9 @@ class ModelHandler(object):
         # prob = np.squeeze(inference_output)
         # a = np.argsort(prob)[::-1]
         # return [['probability=%f, class=%s' %(prob[i], self.labels[i]) for i in a[0:5]
-        return str(inference_output)
+        output = [str(inference_output)]
+        print('Postprocess successfully completed...')
+        return output
 
     def handle(self, data, context):
         """

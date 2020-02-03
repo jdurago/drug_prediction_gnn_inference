@@ -44,11 +44,19 @@ RUN update-alternatives --install /usr/local/bin/pip pip /usr/local/bin/pip3 1
 
 # install packages including GCC
 RUN apt-get install -y build-essential 
-#RUN conda install -y -c conda-forge rdkit==2018.09.3
-#RUN conda install pytorch-cpu torchvision -y -c pytorch
+
+# Install miniconda to /miniconda
+RUN curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+RUN bash Miniconda3-latest-Linux-x86_64.sh -p /miniconda -b
+RUN rm Miniconda3-latest-Linux-x86_64.sh
+ENV PATH=/miniconda/bin:${PATH}
+RUN conda update -y conda
+
+RUN conda install -y -c conda-forge rdkit==2018.09.3
+RUN conda install pytorch-cpu torchvision -y -c pytorch
 #RUN conda install -y -c conda-forge matplotlib
 ##RUN pip install git+https://github.com/samoturk/mol2vec
-RUN pip install scikit-learn==0.21.3 
+RUN pip install scikit-learn==0.21.3 dgl==0.4.1  
 
 # Install MMS, and SageMaker Inference Toolkit to set up MMS
 RUN pip --no-cache-dir install mxnet multi-model-server sagemaker-inference retrying
@@ -63,7 +71,8 @@ RUN mkdir -p /home/model-server/
 COPY src/model_handler.py /home/model-server/model_handler.py
 
 # Define an entrypoint script for the docker image
-ENTRYPOINT ["python", "/usr/local/bin/dockerd-entrypoint.py"]
+#ENTRYPOINT ["python", "/usr/local/bin/dockerd-entrypoint.py"]
+ENTRYPOINT ["/miniconda/bin/python", "/usr/local/bin/dockerd-entrypoint.py"]
 
 # Define command to be passed to the entrypoint
 CMD ["serve"]
