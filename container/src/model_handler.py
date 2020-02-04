@@ -106,7 +106,9 @@ class ModelHandler(object):
         for graph, feat in model_input:
             logit = self.model(graph, feat)
             prob = logit2probability(logit)
-            probs.append(prob.detach().numpy())
+            # format output so it returns list[float,...]
+            prob = prob[0][0]
+            probs.append(prob.detach().numpy().tolist())
 
         print('Inference successfully completed...')
         return probs
