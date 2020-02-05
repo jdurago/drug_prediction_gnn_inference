@@ -1,12 +1,7 @@
 from collections import namedtuple
-import glob
 import json
-import logging
 import os
-import re
 
-import numpy as np
-from sklearn.linear_model import LinearRegression
 from dgl.data.chem import smiles_to_bigraph, BaseAtomFeaturizer, CanonicalAtomFeaturizer
 from dgl import DGLGraph
 import torch
@@ -65,12 +60,8 @@ class ModelHandler(object):
         model_dir = properties.get("model_dir")
         print('MODEL DIR {}'.format(model_dir))
 
-        # X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
-        # y = np.dot(X, np.array([1, 2])) + 3
-
         # Load model
         try:
-            # self.model = LinearRegression().fit(X, y)
             self.model = torch.load(os.path.join(model_dir, 'gnn_model.pt'))
             print('Model successfully loaded...')
         except RuntimeError:
@@ -88,8 +79,8 @@ class ModelHandler(object):
         smiles = [json.loads(r['body'].decode('utf-8')) for r in request]
         print('INPUT SMILES {}'.format(smiles))
         
-        graphs = [smiles_to_dgl_graph(s) for s in smiles ]
-        feats = [g.ndata.pop(atom_data_field) for g in graphs ]
+        graphs = [smiles_to_dgl_graph(s) for s in smiles]
+        feats = [g.ndata.pop(atom_data_field) for g in graphs]
         print('Input successfully preprocessed...')
         return zip(graphs, feats)
 
@@ -120,9 +111,6 @@ class ModelHandler(object):
         :return: list of predict results
         """
         # Take output from network and post-process to desired format
-        # prob = np.squeeze(inference_output)
-        # a = np.argsort(prob)[::-1]
-        # return [['probability=%f, class=%s' %(prob[i], self.labels[i]) for i in a[0:5]
         output = [str(inference_output)]
         print('Postprocess successfully completed...')
         return output
